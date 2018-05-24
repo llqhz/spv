@@ -24,6 +24,10 @@ class Index
         // 窗口最大化
         $driver->manage()->window()->maximize();
 
+
+        //$this->testAnothor($driver);
+
+
         // 打开url链接
         $driver->get('http://e.kuakao.com/');
 
@@ -34,6 +38,9 @@ class Index
         //$js = "$('#kw').val('aaaa');";
         //$driver->executeScript($js);
 
+        sleep(1);
+
+        // 点击登录
         //$element = $driver->findElement(WebDriverBy::id('kw'));
         $element = $driver->findElement( WebDriverBy::cssSelector('.login-btn') );
         $element->click();
@@ -77,7 +84,91 @@ class Index
         //$html = $driver->getPageSource();
         //file_put_contents('a.html',$html);
 
-        $elms = $driver->findElement(WebDriverBy::cssSelector('100shuai'));
+
+        // 获取所有课程
+        $elms = $driver->findElements(
+                WebDriverBy::cssSelector('.fl .coures-box .coures-title a')
+            );
+        $coures = [];
+        foreach ($elms as $key => $elm) {
+            $li = [];
+            $li['text'] = $elm->getText();   //
+            $li['link'] = $elm->getAttribute('href');   //
+            $coures[] = $li;   // 保存课程的标题和链接
+        }
+
+        $elm = $elms[0]; // 取出第一个课程 元素
+
+        // 点击该课程
+        $elm->click();
+        $this->switchToEndWindow($driver); //切换至最后一个window 新标签
+        sleep(3);
+
+        // 移动到章节
+        $ele = $driver->findElement(WebDriverBy::cssSelector('.big-title'));
+        $driver->executeScript("arguments[0].scrollIntoView();",[$ele]);
+
+        // 获取课程章
+        $elms = $driver->findElements(
+                WebDriverBy::cssSelector('.video .chapter .chapter-btitle')
+            );
+
+        $chapters = [];
+        foreach ($elms as $key => $elm) {
+            $li = [];
+            $li['text'] = $elm->getText();   // 获取链接上的文字 : 第几章
+            $chapters[] = $li;   // 保存课程章节的标题
+        }
+
+
+        // 提取第一章
+        $elm = $elms[0];
+
+        // 点击展开第一章
+        $ids = $elm->getAttribute('ids');
+        $elm->click(); // 点击展开
+        sleep(1);
+        // 判断是否已经展开
+        $ul = $driver->findElement(
+                WebDriverBy::cssSelector('.chapter_lecContent'.$ids)
+            );
+        $style = $ul->getAttribute('style');
+        if ( !(preg_match('/height: \d{3}/',$style) >= 1) ) {
+            # 元素不可见
+            $elm->click(); // 再次点击展开
+            sleep(1);
+        }
+
+        // 获取第一章所有小节
+        $lis = $driver->findElements(
+                WebDriverBy::cssSelector('.chapter_lecContent'.$ids.' li')
+            );
+        $lecs = [];  // 第一章所有小节
+        foreach ($lis as $key => $li) {
+            $it = [];
+            $text = $li->getText();
+            $text = preg_replace('/上次学习.*$/u','',$text);
+            $it['text'] = $text;
+            $lecs[] = $it;
+        }
+
+        // 提取第一小节
+        $lec = $lis[0];
+        // 观看
+        $lec->click();
+        $this->switchToEndWindow($driver); //切换至最后一个window 新标签
+
+        sleep(2);
+
+        $video = $driver->findElement(WebDriverBy::cssSelector('video.pv-video'));
+        $src = $video->getAttribute('src');
+        echo $src;
+
+        sleep(3);
+
+        $driver->close();  // 关闭当前标签页
+        $this->switchToEndWindow($driver); //切换至最后一个window 新标签
+        echo "success";
 
         sleep(13);
         die();
@@ -160,8 +251,53 @@ class Index
         }
     }
 
+    protected function switchToEndWindow($driver) {
+        $arr = $driver->getWindowHandles();
+        foreach ($arr as $k=>$v){
+            if($k == (count($arr)-1)){
+                $driver->switchTo()->window($v);
+            }
+        }
+    }
+
     public function hello($name = 'ThinkPHP5')
     {
         return 'hello,' . $name;
     }
+
+
+
+
+
+
+
+
+    public function testAnothor($driver)
+    {
+        // 打开url链接
+        $driver->get('http://www.baidu.com/');
+
+        $driver->findElement(WebDriverBy::cssSelector('#kw'))->sendKeys('qqq');
+        $driver->findElement(WebDriverBy::cssSelector('#su'))->click();
+
+        sleep(3);
+
+        $elms = $driver->findElements(WebDriverBy::cssSelector('.c-container'));
+        dump($elms);
+
+        die('success');
+
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 }
