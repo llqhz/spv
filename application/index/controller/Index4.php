@@ -43,7 +43,150 @@ class Index
             $this->myCourse($driver,$course);
         }
 
+
         ####################  ---THE-END---  ###########################
+
+        # 进入该课程
+        $course = $courses[0]; // 取出第一个课程 元素
+        $course->click();
+        switchToEndWindow($driver); //切换至最后一个window 新标签
+        sleep(3);
+
+        # 移动到章节框
+        $ele = $driver->findElement(css('.big-title'));
+        $driver->executeScript("arguments[0].scrollIntoView();",[$ele]);
+
+        # 获取课程所有章
+        $chapters = $this->myChapter($driver);
+
+        # 提取第一章
+        $chapter = $chapters[0];
+
+        # 点击展开第一章
+        $ids = $chapter->getAttribute('ids');
+        $elm->click(); // 点击展开
+        sleep(1);
+        // 判断是否已经展开
+        $ul = $driver->findElement(
+                css('.chapter_lecContent'.$ids)
+            );
+        $style = $ul->getAttribute('style');
+        if ( !(preg_match('/height: \d{3}/',$style) >= 1) ) {
+            # 元素不可见
+            $elm->click(); // 再次点击展开
+            sleep(1);
+        }
+
+        // 获取第一章所有小节
+        $lis = $driver->findElements(
+                css('.chapter_lecContent'.$ids.' li')
+            );
+        $lecs = [];  // 第一章所有小节
+        foreach ($lis as $key => $li) {
+            $it = [];
+            $text = $li->getText();
+            $text = preg_replace('/上次学习.*$/u','',$text);
+            $it['text'] = $text;
+            $lecs[] = $it;
+        }
+
+        // 提取第一小节
+        $lec = $lis[0];
+        // 观看
+        $lec->click();
+        $this->switchToEndWindow($driver); //切换至最后一个window 新标签
+
+        sleep(2);
+
+        $video = $driver->findElement(css('video.pv-video'));
+        $src = $video->getAttribute('src');
+        echo $src;
+
+        sleep(3);
+
+        $driver->close();  // 关闭当前标签页
+        $this->switchToEndWindow($driver); //切换至最后一个window 新标签
+        echo "success";
+
+        sleep(13);
+        die('success');
+
+        $driver->element('css selector', '#login_password')->value(array('value' => str_split('1234')));
+        $driver->element('css selector', '#login_remeberMe')->click();
+
+        // 点击登录
+        $driver->element('css selector', '#login_submit')->click();
+
+        $driver->quit();exit('success');
+
+        $element->sendKeys(WebDriverKeys::LEFT);
+        $element->sendKeys("B");
+
+        $driver->quit();exit('success');
+
+        // 寻找当前元素
+        $driver->findElement(WebDriverBy::id('kw'))->sendKeys('wwe')->submit();
+
+        // 获取元素并输入数据
+        $element = $driver->findElement(
+            WebDriverBy::cssSelector('input[name=wd]')
+        );
+        $element->clear(); //清空
+        $element->sendKeys("test value");
+
+        //关闭浏览器
+        //$driver->quit();
+        exit('success');
+
+
+        // 寻找当前元素
+        $driver->findElement(WebDriverBy::id('su'))->sendKeys('wwe')->submit();
+
+        // 等待新的页面加载完成....
+        $driver->wait($waitSeconds)->until(
+            WebDriverExpectedCondition::visibilityOfElementLocated(
+                WebDriverBy::partialLinkText('100shuai')
+            )
+        );
+        $driver->findElement(WebDriverBy::partialLinkText('100shuai'))->sendKeys('xxx')->click();   //一般点击链接的时候，担心因为失去焦点而抛异常，则可以先调用一下sendKeys，再click
+
+
+        switchToEndWindow($driver); //切换至最后一个window
+
+        // 等待加载....
+        $driver->wait($waitSeconds)->until(
+            WebDriverExpectedCondition::visibilityOfElementLocated(
+                WebDriverBy::partialLinkText('SmackDown收视率创历史新低')
+            )
+        );
+        echo iconv("UTF-8","GB2312",'标题2')."：" . $driver->getTitle() . "\n";    //cmd.exe中文乱码，所以需转码
+
+        $driver->findElement(WebDriverBy::partialLinkText('SmackDown收视率创历史新低'))->click();
+
+        switchToEndWindow($driver); //切换至最后一个window
+
+
+        // 等待加载....
+        $driver->wait($waitSeconds)->until(
+            WebDriverExpectedCondition::titleContains('SmackDown收视率创历史新低')
+        );
+        echo iconv("UTF-8","GB2312",'标题3')."：" . $driver->getTitle() . "\n";    //cmd.exe中文乱码，所以需转码
+
+
+        //关闭浏览器
+        $driver->quit();
+
+        // 获取当前页面title
+        $title = $driver->getTitle();
+
+        // 执行js
+        //$js = "$('#kw').val('aaaa');";
+        //$driver->executeScript($js);
+
+        // 我的课程
+        // 获取当前渲染后页面全部结果 字符串
+        //$html = $driver->getPageSource();
+        //file_put_contents('a.html',$html);
     }
 
     public function funcInit()
@@ -96,11 +239,6 @@ class Index
     }
 
 
-    /**
-     * 点击登录框并输入账号登录
-     * @param  [type] $driver [description]
-     * @return [type]         [description]
-     */
     public function login($driver)
     {
         // 点击登录
@@ -142,12 +280,6 @@ class Index
         return $elms;
     }
 
-    /**
-     * 进入该课程,并获取课程的所有章
-     * @param  [type] $driver [description]
-     * @param  [type] $course [description]
-     * @return [type]         [description]
-     */
     public function myCourse($driver,$course)
     {
         # 进入该课程
@@ -167,21 +299,11 @@ class Index
             $li['text'] = $elm->getText();   // 获取链接上的文字 : 第几章
             $chapters[] = $li;   // 保存课程章节的标题
 
-            # 进入该章 (获取焦点后进入)
-            $driver->executeScript("arguments[0].scrollIntoView();",[$elm]);
+            # 进入该章
             $this->myChapter($driver,$elm);
         }
-        $driver->close();  // 关闭当前标签页
-        sleep(1);
-        switchToEndWindow($driver); // 切换至最后一个window 新标签
     }
 
-    /**
-     * 章 => 每节 获取该章的所有小节课
-     * @param  [type] $driver  [description]
-     * @param  [type] $chapter [description]
-     * @return [type]          [description]
-     */
     public function myChapter($driver,$chapter)
     {
         # 点击展开该章
@@ -212,7 +334,7 @@ class Index
     }
 
     /**
-     * 进入该小节观看,并获取该节链接
+     * 获取该节链接
      * @param  [type] $driver  [description]
      * @param  [type] $lecture [description]
      * @return [type]          [description]
@@ -221,7 +343,7 @@ class Index
     {
         $lecture->click();
         switchToEndWindow($driver); //切换至最后一个window 新标签
-        sleep(6);
+        sleep(5);
 
         $video = $driver->findElement(css('video.pv-video'));
         $src = $video->getAttribute('src');
@@ -229,8 +351,11 @@ class Index
 
         $driver->close();  // 关闭当前标签页
         sleep(1);
-        switchToEndWindow($driver); // 切换至最后一个window 新标签
-        sleep(3);
+        switchToEndWindow($driver); //切换至最后一个window 新标签
+        echo "success";
+
+        sleep(13);
+        die('success');
     }
 
 
