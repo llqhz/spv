@@ -7,22 +7,11 @@ use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\WebDriverExpectedCondition;
 use Facebook\WebDriver\WebDriverWindow;  // 窗口最大化
 
-use think\Db;
-
 /**
- * 课程套餐
+ * 我的课程
  */
 class Index
 {
-    protected $title = '2018年考研金融专硕考研协议班';
-    protected $course = '';         // 课程
-    protected $cslink = '';         // 课程链接
-    protected $chapter = '';        // 章
-    protected $lecture = '';        // 小节
-    protected $lclink = '';         // 小节链接
-    protected $vlink  = '';         // 视频链接
-    protected $vtype  =  1 ;        // 视频类型 1->直播  2->教材课程
-
     public function index()
     {
 
@@ -37,18 +26,20 @@ class Index
 
         // 打开url链接
         $driver->get('http://e.kuakao.com/');
-        sleep(3);
+        sleep(1);
 
         # 点击登录
         $this->login($driver);
 
-        # 打开新链接
-        # 课程套餐 > 2018年考研金融专硕考研协议班
-        $driver->get('http://e.kuakao.com/classPackage/classPackageDetail/271');
-        sleep(3);
+        # 跳转到个人中心
+        $driver->findElement(css('.myHead'))->click();
+        sleep(2);  // 等待2秒
 
+        # 跳转到我的课程 1=>我的课程  2=>我的课程套 3=>我的收藏
+        $driver->findElement(css('.rightMenu li:nth-child(1)'))->click();
+        sleep(1);
 
-        # 找到所有课程
+        # 从我的课程 => 所有课程
         $courses = $this->myCenter($driver);
         foreach ($courses as $key => $course) {
             # 课程 => 所有章节
@@ -123,6 +114,7 @@ class Index
         }
     }
 
+
     /**
      * 点击登录框并输入账号登录
      * @param  [type] $driver [description]
@@ -151,23 +143,20 @@ class Index
 
 
     /**
-     * 获取课程套餐I的所有课程
+     * 获取个人中心的我的课程的所有课程
      * @param  [type] $driver [description]
      * @return [type]         [description]
      */
     public function myCenter($driver)
     {
         // 获取所有课程
-        $elms = $driver->findElements(css('.stage-line .stag-detail .detail-cont-box a'));
+        $elms = $driver->findElements(css('.fl .coures-box .coures-title a'));
         $coures = []; // 课程的标题和链接
         foreach ($elms as $key => $elm) {
             $li = [];
-            $li['text'] = $elm->getText();              // 课程标题
-            $li['link'] = $elm->getAttribute('href');   // 课程链接
+            $li['text'] = $elm->getText();   //
+            $li['link'] = $elm->getAttribute('href');   //
             $coures[] = $li;   // 保存课程的标题和链接
-
-            $this->course = $li['text'];
-            $this->cslink = $li['link'];
         }
         return $elms;
     }
@@ -180,101 +169,39 @@ class Index
      */
     public function myCourse($driver,$course)
     {
-        # 进入该课程 [滚动焦点到元素]
-        $driver->executeScript("arguments[0].scrollIntoView();",[$course]);
-        sleep(0.5);
+        # 进入该课程
         $course->click();
-        sleep(0.2);
         switchToEndWindow($driver); //切换至最后一个window 新标签
         sleep(3);
 
         # 先看是否有视频目录
-        if ( isElementExsit(".tab-menu .video_flag") ) {
-            # 视频目录
-            $driver->findElement(css('.tab-menu .video_flag'))->click();
-            sleep(2);
+        if ( isElementExsit(".big-title") ) {
+            # 移动到章节框
+            $ele = $driver->findElement(css('.big-title'));
+            $driver->executeScript("arguments[0].scrollIntoView();",[$ele]);
 
-            $this->vtype = 2; # 教材课程
-            $this->courseVideo($driver);
+            # 课程 => 章
+            $elms = $driver->findElements(css('.video .chapter .chapter-btitle'));
+            $chapters = [];   // 保存章信息
+            foreach ($elms as $key => $elm) {
+                $li = [];
+                $li['text'] = $elm->getText();   // 获取链接上的文字 : 第几章
+                $chapters[] = $li;   // 保存课程章节的标题
+
+                # 进入该章 (获取焦点后进入)
+                $driver->executeScript("arguments[0].scrollIntoView();",[$elm]);
+                $this->myChapter($driver,$elm);
+            }
+            $driver->close();  // 关闭当前标签页
+            sleep(1);
+            switchToEndWindow($driver); // 切换至最后一个window 新标签
         }
+
         # 直播课程
-        if ( isElementExsit('.tab-menu .live_flag') ) {
-            # 直播课程
-            $driver->findElement(css('.tab-menu .live_flag'))->click();
-            sleep(2);
+        $driver->findElement(css('.live_flag'))->click();
+        sleep(2);
 
-            $this->vtype = 1; # 直播课程
-            $this->courseLive($driver);
-        }
 
-        $driver->close();  // 关闭当前标签页
-        sleep(1);
-        switchToEndWindow($driver); // 切换至最后一个window 新标签
-    }
-
-    /**
-     * 视频目录课程
-     * @param  [type] $driver [description]
-     * @return [type]         [description]
-     */
-    public function courseVideo($driver)
-    {
-        # 判断是否存在章节内容
-        if ( !isElementExsit('.big-title') ) {
-            return false;
-        }
-
-        # 移动到章节框
-        $ele = $driver->findElement(css('.big-title'));
-        $driver->executeScript("arguments[0].scrollIntoView();",[$ele]);
-
-        # 课程 => 章
-        $elms = $driver->findElements(css('.video .chapter .chapter-btitle'));
-        $chapters = [];   // 保存章信息
-        foreach ($elms as $key => $elm) {
-            $li = [];
-            $li['text'] = $elm->getText();   // 获取链接上的文字 : 第几章
-            $chapters[] = $li;   // 保存课程章节的标题
-
-            $this->chapter = $li['text'];
-            # 进入该章 (获取焦点后进入)
-            $driver->executeScript("arguments[0].scrollIntoView();",[$elm]);
-            $this->myChapter($driver,$elm);
-        }
-
-    }
-
-    /**
-     * 直播课程
-     * @param  [type] $driver [description]
-     * @return [type]         [description]
-     */
-    public function courseLive($driver)
-    {
-        # 判断是否存在直播内容
-        if ( !isElementExsit('.live_contents .chapter li') ) {
-            return false;
-        }
-
-        # 移动到直播节框
-        $ele = $driver->findElement(css('.live_contents'));
-        $driver->executeScript("arguments[0].scrollIntoView();",[$ele]);
-
-        # 课程 => 节
-        $elms = $driver->findElements(css('.chapter .chapter-stitle li.livestudy'));
-        $lectures = [];   // 保存章信息
-        foreach ($elms as $key => $elm) {
-            $li = [];
-            $li['text'] = $key . ' ' . $elm->getAttribute('name');   // 获取链接上的文字 : 第几节
-            $lectures[] = $li;   // 保存课程小节的标题
-
-            $this->chapter = $key;         # 章
-            $this->lecture = $li['text'];  # 节
-
-            # 进入该小节观看 (获取焦点后进入)
-            $driver->executeScript("arguments[0].scrollIntoView();",[$elm]);
-            $this->myLecture($driver,$elm);
-        }
     }
 
     /**
@@ -322,39 +249,16 @@ class Index
     {
         $lecture->click();
         switchToEndWindow($driver); //切换至最后一个window 新标签
-        sleep(8);
+        sleep(6);
 
-        if ( !isElementExsit('video.pv-video') ) {
-            echo "video not found ...";
-        } else {
-            $video = $driver->findElement(css('video.pv-video'));
-            $src = $video->getAttribute('src');
-            $this->vlink = $src;
-            echo $src , "\n";  //该链接就是视频地址
-            $this->saveVideo();
-        }
+        $video = $driver->findElement(css('video.pv-video'));
+        $src = $video->getAttribute('src');
+        echo $src , "\n";  //该链接就是目标值
 
         $driver->close();  // 关闭当前标签页
         sleep(1);
         switchToEndWindow($driver); // 切换至最后一个window 新标签
-        sleep(1);
-    }
-
-    public function saveVideo()
-    {
-         $data = [
-            'title'  =>   $this->title,         // 标题
-            'course'  =>   $this->course,       // 课程
-            'cslink'  =>   $this->cslink,       // 课程链接
-            'chapter'  =>   $this->chapter,     // 章
-            'lecture'  =>   $this->lecture,     // 小节
-            'lclink'  =>   $this->lclink,       // 小节链接
-            'vlink'  =>   $this->vlink,         // 视频链接
-            'vtype'  =>   $this->vtype,         // 视频类型 1->直播  2->教材课程
-            'ctime' => time(),
-            'utime' => time(),
-         ];
-         Db::name('info')->insert($data);
+        sleep(3);
     }
 
 
