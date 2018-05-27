@@ -49,12 +49,19 @@ class Index
         $driver->get('http://e.kuakao.com/classPackage/classPackageDetail/271');
         sleep(8);
 
-
         # 找到所有课程
         $courses = $this->myCenter($driver);
         foreach ($courses as $key => $course) {
             # 课程 => 所有章节
-            $this->myCourse($driver,$course);
+            if ( $key < 15  ) {
+                continue;
+            }
+            try {
+                $this->myCourse($driver,$course);
+            } catch (\Exception $e) {
+                echo "video is not of time \n";
+                continue;
+            }
         }
 
         ####################  ---THE-END---  ###########################
@@ -198,24 +205,27 @@ class Index
 
         # 先看是否有视频目录
         if ( isElementExsit(".tab-menu .video_flag",$driver) ) {
+            /*  屏蔽视频课程
             # 视频目录
             $driver->findElement(css('.tab-menu .video_flag'))->click();
             sleep(2);
 
             $this->vtype = 2; # 教材课程
-            $this->courseVideo($driver);
+            $this->courseVideo($driver);*/
         }
         # 直播课程
         if ( isElementExsit('.tab-menu .live_flag',$driver) ) {
             # 直播课程 (跳过)
-            /*$driver->findElement(css('.tab-menu .live_flag'))->click();
+            $driver->findElement(css('.tab-menu .live_flag'))->click();
             sleep(2);
 
             $this->vtype = 1; # 直播课程
-            $this->courseLive($driver);*/
+            $this->courseLive($driver);
         }
 
-        $driver->close();  // 关闭当前标签页
+        if ( isElementExsit('.w h2 span',$driver) ) {
+            $driver->close();  // 关闭当前标签页
+        }
         sleep(3);
         switchToEndWindow($driver); // 切换至最后一个window 新标签
     }
@@ -334,10 +344,18 @@ class Index
         switchToEndWindow($driver); //切换至最后一个window 新标签
         sleep(31);
 
-        if ( !isElementExsit('video.pv-video',$driver) ) {
+        if ( isElementExsit('iframe',$driver) ) {
+            $js = "$('iframe').attr('id','iframe');";
+            $driver->executeScript($js);
+            sleep(1);
+            $driver->switchTo()->frame("iframe");
+            sleep(2);
+        }
+
+        if ( !isElementExsit('video',$driver) ) {
             echo "video not found ...";
         } else {
-            $video = $driver->findElement(css('video.pv-video'));
+            $video = $driver->findElement(css('video'));
             $src = $video->getAttribute('src');
 
             $this->lclink = $driver->getCurrentURL();
@@ -346,6 +364,8 @@ class Index
             $this->saveVideo();
         }
 
+        switchToEndWindow($driver); //切换至最后一个window 新标签
+        sleep(2);
         $driver->close();  // 关闭当前标签页
         sleep(3);
         switchToEndWindow($driver); // 切换至最后一个window 新标签
