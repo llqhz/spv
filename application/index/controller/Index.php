@@ -14,6 +14,8 @@ use think\Db;
  */
 class Index
 {
+    protected $driver = '';
+
     protected $title = '2018年考研金融专硕考研协议班';
     protected $course = '';         // 课程
     protected $cslink = '';         // 课程链接
@@ -37,7 +39,7 @@ class Index
 
         // 打开url链接
         $driver->get('http://e.kuakao.com/');
-        sleep(3);
+        sleep(8);
 
         # 点击登录
         $this->login($driver);
@@ -45,7 +47,7 @@ class Index
         # 打开新链接
         # 课程套餐 > 2018年考研金融专硕考研协议班
         $driver->get('http://e.kuakao.com/classPackage/classPackageDetail/271');
-        sleep(3);
+        sleep(8);
 
 
         # 找到所有课程
@@ -112,12 +114,12 @@ class Index
          * @param  [type]  $selector [description]
          * @return boolean           [description]
          */
-        function isElementExsit($driver,$selector){
+        function isElementExsit($selector,$driver){
             try {
                 $element = $driver->findElement(css($selector));
                 return true;
             } catch (\Exception $e) {
-                echo 'element is not found!';
+                echo 'element [ '. $selector .' ] is not found!' . "\n";
                 return false;
             }
         }
@@ -136,17 +138,17 @@ class Index
         $element->click();
 
         // 输入账号密码
-        $name = '13297963625';
-        $pwd = 'LL605382289';
+        $name = '13207152679';
+        $pwd = 'Gong4921';
 
         $driver->findElement(css('#login_account'))->sendKeys($name);
         $driver->findElement(css('#login_password'))->sendKeys($pwd);
         $driver->findElement(css('#login_remeberMe'))->click(); # 请记住我
-        sleep(1);
+        sleep(3);
 
         // 点击登录
         $driver->findElement(css('#login_submit'))->click();
-        sleep(3);
+        sleep(5);
     }
 
 
@@ -182,14 +184,20 @@ class Index
     {
         # 进入该课程 [滚动焦点到元素]
         $driver->executeScript("arguments[0].scrollIntoView();",[$course]);
-        sleep(0.5);
+        sleep(6);
         $course->click();
-        sleep(0.2);
+        sleep(1);
         switchToEndWindow($driver); //切换至最后一个window 新标签
-        sleep(3);
+        sleep(9);
+
+        # 保存标题
+        if ( isElementExsit('.w h2 span:nth-child(1)',$driver) ) {
+            $h2 = $driver->findElement(css('.w h2 span:nth-child(1)'));
+            $this->course = $h2->getText();
+        }
 
         # 先看是否有视频目录
-        if ( isElementExsit(".tab-menu .video_flag") ) {
+        if ( isElementExsit(".tab-menu .video_flag",$driver) ) {
             # 视频目录
             $driver->findElement(css('.tab-menu .video_flag'))->click();
             sleep(2);
@@ -198,17 +206,17 @@ class Index
             $this->courseVideo($driver);
         }
         # 直播课程
-        if ( isElementExsit('.tab-menu .live_flag') ) {
-            # 直播课程
-            $driver->findElement(css('.tab-menu .live_flag'))->click();
+        if ( isElementExsit('.tab-menu .live_flag',$driver) ) {
+            # 直播课程 (跳过)
+            /*$driver->findElement(css('.tab-menu .live_flag'))->click();
             sleep(2);
 
             $this->vtype = 1; # 直播课程
-            $this->courseLive($driver);
+            $this->courseLive($driver);*/
         }
 
         $driver->close();  // 关闭当前标签页
-        sleep(1);
+        sleep(3);
         switchToEndWindow($driver); // 切换至最后一个window 新标签
     }
 
@@ -220,7 +228,7 @@ class Index
     public function courseVideo($driver)
     {
         # 判断是否存在章节内容
-        if ( !isElementExsit('.big-title') ) {
+        if ( !isElementExsit('.big-title',$driver) ) {
             return false;
         }
 
@@ -232,6 +240,7 @@ class Index
         $elms = $driver->findElements(css('.video .chapter .chapter-btitle'));
         $chapters = [];   // 保存章信息
         foreach ($elms as $key => $elm) {
+            sleep(3);
             $li = [];
             $li['text'] = $elm->getText();   // 获取链接上的文字 : 第几章
             $chapters[] = $li;   // 保存课程章节的标题
@@ -252,7 +261,7 @@ class Index
     public function courseLive($driver)
     {
         # 判断是否存在直播内容
-        if ( !isElementExsit('.live_contents .chapter li') ) {
+        if ( !isElementExsit('.live_contents .chapter li',$driver) ) {
             return false;
         }
 
@@ -304,10 +313,11 @@ class Index
         foreach ($lis as $key => $li) {
             $it = [];
             $text = $li->getText();
-            $text = preg_replace('/上次学习.*$/u','',$text);
+            $text = preg_replace('/上次学习.*$/','',$text);
             $it['text'] = $text;
             $lecs[] = $it;
 
+            $this->lecture = $text;
             $this->myLecture($driver,$li);
         }
     }
@@ -322,22 +332,24 @@ class Index
     {
         $lecture->click();
         switchToEndWindow($driver); //切换至最后一个window 新标签
-        sleep(8);
+        sleep(31);
 
-        if ( !isElementExsit('video.pv-video') ) {
+        if ( !isElementExsit('video.pv-video',$driver) ) {
             echo "video not found ...";
         } else {
             $video = $driver->findElement(css('video.pv-video'));
             $src = $video->getAttribute('src');
+
+            $this->lclink = $driver->getCurrentURL();
             $this->vlink = $src;
             echo $src , "\n";  //该链接就是视频地址
             $this->saveVideo();
         }
 
         $driver->close();  // 关闭当前标签页
-        sleep(1);
+        sleep(3);
         switchToEndWindow($driver); // 切换至最后一个window 新标签
-        sleep(1);
+        sleep(3);
     }
 
     public function saveVideo()
@@ -354,6 +366,7 @@ class Index
             'ctime' => time(),
             'utime' => time(),
          ];
+         dump($data);
          Db::name('info')->insert($data);
     }
 
